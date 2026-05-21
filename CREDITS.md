@@ -2,7 +2,7 @@
 
 ## 制作
 
-- **Subara3** — 企画・開発・UIアイコン
+- **[Subara3](https://subara3.com)** — 企画・開発・UIアイコン
 - **あきら** — アプリアイコン（アーガイル柄）
 
 ## アイコン
@@ -32,5 +32,5 @@
 ## 本体ライセンス
 
 **フリーソフト（無料）／オープンソースではありません。**
-著作権はすべて Subara3 に帰属します（All rights reserved）。
+著作権はすべて [Subara3](https://subara3.com) に帰属します（All rights reserved）。
 無料での使用は可、改変・再配布・転載・販売は禁止。詳細は `LICENSE.txt`。

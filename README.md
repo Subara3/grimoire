@@ -117,9 +117,14 @@ pyinstaller --onefile --windowed --name Grimoire ^
 ## ライセンス
 
 **フリーソフト（無料）。ただしオープンソースではありません。**
-著作権はすべて Subara3 に帰属します（All rights reserved）。
+著作権はすべて [Subara3](https://subara3.com) に帰属します（All rights reserved）。
 
 - 許可：無料でのダウンロード・使用
 - 禁止：改変・再配布・転載・二次配布・販売
 
 詳細は [`LICENSE.txt`](LICENSE.txt) を参照してください。
+
+## 作者
+
+[Subara3](https://subara3.com) — 企画・開発・UIアイコン
+アプリアイコン：あきら
