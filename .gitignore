@@ -1,0 +1,16 @@
+# 個人データ（機密情報を含むため絶対にコミットしない）
+templates.json
+
+# ビルド成果物
+build/
+dist/
+*.spec
+__pycache__/
+*.pyc
+
+# 開発時の一時ファイル（スクリーンショット等）
+_*.png
+*_run.log
+
+# アプリアイコンの元素材（あきら提供の生データは公開しない。icon.ico/png のみ同梱）
+app_icon_src.png
