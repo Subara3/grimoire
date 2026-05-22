@@ -30,7 +30,7 @@ from tkinter import ttk, messagebox
 APP_NAME = "Grimoire"
 APP_TITLE = "Grimoire（グリモワ）"
 APP_VERSION = "1.3.0"
-AUTHOR = "Subara3"
+AUTHOR = "頻子"
 AUTHOR_URL = "https://subara3.com"
 MAX_FOLDERS = 10
 
