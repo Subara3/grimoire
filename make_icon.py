@@ -49,14 +49,19 @@ def _save(im, name):
     im.resize((UI_OUT, UI_OUT), Image.LANCZOS).save(name)
 
 
+LOCK_LOCKED = (90, 86, 104, 255)   # 落ち着いたスレート（黄色をやめる）
+LOCK_OPEN = (46, 150, 160, 255)    # 開錠＝ティール（コピー準備OKの合図）
+
+
 def lock_icon(open_=False):
     im, dr = _new()
+    col = LOCK_OPEN if open_ else LOCK_LOCKED
     if open_:
         # 開錠：フックを左に開いた状態
-        dr.arc([16, 6, 42, 36], start=160, end=340, fill=GOLD, width=8)
+        dr.arc([16, 6, 42, 36], start=160, end=340, fill=col, width=8)
     else:
-        dr.ellipse([22, 8, 50, 40], outline=GOLD, width=8)  # 閉じたフック（下半分は本体で隠す）
-    dr.rounded_rectangle([16, 34, 56, 64], radius=8, fill=GOLD)  # 本体
+        dr.ellipse([22, 8, 50, 40], outline=col, width=8)  # 閉じたフック（下半分は本体で隠す）
+    dr.rounded_rectangle([16, 34, 56, 64], radius=8, fill=col)  # 本体
     dr.ellipse([32, 44, 40, 52], fill=(255, 255, 255, 255))      # 鍵穴
     dr.rectangle([34, 49, 38, 59], fill=(255, 255, 255, 255))
     return im

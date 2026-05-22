@@ -4,14 +4,15 @@ Grimoire (グリモワ) — 定型文＝呪文を綴じた魔導書
 - フォルダ(タブ)で定型文を分類管理
 - 行をクリック / Enter / 1〜9 でクリップボードにコピー（呪文の詠唱）
 - 機密は鍵アイコン：クリックで開錠 → もう一度でコピー（誤コピー防止）
-- ★でピン留め → よく使う定型文を上に固定・「よく使う」タブに集約
-- 各行の右に鉛筆(編集)・ゴミ箱(削除)アイコン
-- 検索ボックス（全フォルダ横断トグル）/ プレースホルダ展開 / コピー演出
+- ★でお気に入り → 上に固定・「お気に入り」タブに集約
+- 各カードに編集（鉛筆）・削除（ゴミ箱）。ホバーで操作と番号が出る
+- 検索ボックス（全フォルダ横断）/ プレースホルダ展開 / コピー演出
 - ↑↓で選択・Enterでコピー・Escで検索クリア/最小化（キーボード操作）
-- グローバルホットキーでウィンドウを最前面に呼び出し
+- グローバルホットキーでウィンドウを最前面に呼び出し・トレイ常駐
 - データはすべてローカルの templates.json に保存（オフライン完結）
 
-Python + Tkinter / 単一ファイル / PyInstaller で .exe 化可能
+デザインは「札 / Notebook」エディトリアル系（紙＝paper・墨＝ink・極細罫）。
+本文（貼り付ける文章）が主役。Python + Tkinter / 単一ファイル / PyInstaller で .exe 化可能
 """
 
 import json
@@ -28,14 +29,18 @@ from tkinter import ttk, messagebox
 
 APP_NAME = "Grimoire"
 APP_TITLE = "Grimoire（グリモワ）"
-APP_VERSION = "1.2.0"
+APP_VERSION = "1.3.0"
 AUTHOR = "Subara3"
 AUTHOR_URL = "https://subara3.com"
 MAX_FOLDERS = 10
 
-# テーマカラーのプリセット（設定で選択可）
+F_UI = "Yu Gothic UI"
+F_MONO = "Consolas"
+
+# テーマカラーのプリセット（設定で選択可）。アクセントは「強調」だけに使う。
 PRESET_COLORS = [
     ("ターコイズ（デフォルト）", "#84CCD8"),
+    ("墨（モノクロ）", "#1A1A1A"),
     ("紫", "#7E57C2"),
     ("藍", "#3F51B5"),
     ("青", "#1E88E5"),
@@ -98,7 +103,7 @@ def darken(hex_color, factor):
 
 def fg_on(accent):
     """アクセント色の上に置く文字色（明るい色には濃い文字）。"""
-    return "#FFFFFF" if _lum(accent) < 0.6 else "#1F2D33"
+    return "#FFFFFF" if _lum(accent) < 0.6 else "#1A1A1A"
 
 
 def text_on_white(accent):
@@ -116,7 +121,7 @@ def add_dialog_header(win, accent, title):
     bar = tk.Frame(win, bg=accent)
     bar.pack(fill="x")
     tk.Label(bar, text=title, bg=accent, fg=fg,
-             font=("Yu Gothic UI", 12, "bold"), padx=14, pady=8).pack(anchor="w")
+             font=(F_UI, 12, "bold"), padx=14, pady=8).pack(anchor="w")
 
 
 def primary_button(parent_widget, accent, text, command):
@@ -125,27 +130,47 @@ def primary_button(parent_widget, accent, text, command):
     return tk.Button(parent_widget, text=text, command=command, bg=accent, fg=fg,
                      activebackground=accent, activeforeground=fg, relief="flat",
                      bd=0, padx=16, pady=5, cursor="hand2",
-                     font=("Yu Gothic UI", 10, "bold"))
+                     font=(F_UI, 10, "bold"))
 
 
 DEFAULT_DATA = {
-    "settings": {"hotkey": "ctrl+alt+space", "accent": DEFAULT_ACCENT, "confirm_delete": True},
+    "settings": {"hotkey": "ctrl+alt+space", "accent": DEFAULT_ACCENT,
+                 "confirm_delete": True, "paste_back": True},
     "folders": [
         {
-            "name": "メール定型",
+            "name": "挨拶・書き出し",
             "items": [
-                {"title": "書き出し", "body": "お世話になっております。", "secret": False},
-                {"title": "名乗り", "body": "○○と申します。", "secret": False},
-                {"title": "結び", "body": "何卒よろしくお願いいたします。", "secret": False},
-                {"title": "了承", "body": "承知いたしました。", "secret": False},
-                {"title": "お礼", "body": "ご対応いただきありがとうございます。", "secret": False},
+                {"title": "はじめまして", "body": "はじめまして。〇〇と申します。", "secret": False},
+            ],
+        },
+        {
+            "name": "受注・お見積り",
+            "items": [
+                {"title": "納期・料金の連絡", "body": "ご依頼ありがとうございます。納期は{{納期}}頃、料金は{{金額}}を予定しております。", "secret": False},
+            ],
+        },
+        {
+            "name": "進捗・納品",
+            "items": [
+                {"title": "完成・納品", "body": "完成いたしました。データをお送りしますので、ご確認ください。", "secret": False},
+            ],
+        },
+        {
+            "name": "お断り・調整",
+            "items": [
+                {"title": "今回は見送り", "body": "申し訳ございませんが、今回はお受けすることが難しい状況です。またの機会によろしくお願いいたします。", "secret": False},
+            ],
+        },
+        {
+            "name": "お礼・締め",
+            "items": [
+                {"title": "またの機会に", "body": "また機会がありましたらよろしくお願いいたします。", "secret": False},
             ],
         },
         {
             "name": "個人情報",
             "items": [
                 {"title": "メールアドレス", "body": "example@example.com", "secret": True},
-                {"title": "住所", "body": "〒000-0000 ○○県○○市○○町0-0-0", "secret": True},
             ],
         },
     ],
@@ -162,10 +187,12 @@ def load_data() -> dict:
                 s.setdefault("hotkey", "ctrl+alt+space")
                 s.setdefault("accent", DEFAULT_ACCENT)
                 s.setdefault("confirm_delete", True)
+                s.setdefault("paste_back", True)
                 for folder in data["folders"]:
                     for item in folder.get("items", []):
                         item.setdefault("secret", False)
                         item.setdefault("pinned", False)
+                        item.setdefault("used", 0)
                 return data
         except (json.JSONDecodeError, OSError):
             pass
@@ -173,7 +200,7 @@ def load_data() -> dict:
 
 
 def item_label(item: dict) -> str:
-    """一覧に表示するラベル。タイトルが無ければ本文の先頭を使う。"""
+    """ステータス等に使う短いラベル。タイトルが無ければ本文の先頭。"""
     title = item.get("title", "").strip()
     if title:
         return title
@@ -600,7 +627,7 @@ class PlaceholderDialog(tk.Toplevel):
 # 設定ダイアログ（テーマカラー / ホットキー / 削除確認）
 # ---------------------------------------------------------------------------
 class SettingsDialog(tk.Toplevel):
-    def __init__(self, parent, accent, hotkey, confirm_delete):
+    def __init__(self, parent, accent, hotkey, confirm_delete, paste_back=True):
         super().__init__(parent)
         self.transient(parent)
         self.title("設定")
@@ -612,7 +639,7 @@ class SettingsDialog(tk.Toplevel):
         frm = ttk.Frame(self, padding=16)
         frm.pack(fill="both", expand=True)
 
-        ttk.Label(frm, text="テーマカラー", font=("Yu Gothic UI", 10, "bold")).grid(
+        ttk.Label(frm, text="テーマカラー（強調色）", font=(F_UI, 10, "bold")).grid(
             row=0, column=0, sticky="w", pady=(0, 4))
         self._names = [n for n, _ in PRESET_COLORS]
         self.color_var = tk.StringVar(
@@ -625,18 +652,23 @@ class SettingsDialog(tk.Toplevel):
         combo.bind("<<ComboboxSelected>>", lambda e: self.swatch.config(bg=self._hex()))
 
         ttk.Label(frm, text="ホットキー（例: ctrl+alt+space, ctrl+f1）",
-                  font=("Yu Gothic UI", 10, "bold")).grid(
+                  font=(F_UI, 10, "bold")).grid(
             row=2, column=0, columnspan=2, sticky="w", pady=(14, 4))
         self.hk_var = tk.StringVar(value=hotkey)
         ttk.Entry(frm, textvariable=self.hk_var, width=28).grid(
             row=3, column=0, columnspan=2, sticky="we")
 
+        self.paste_var = tk.BooleanVar(value=paste_back)
+        ttk.Checkbutton(
+            frm, text="コピー後、呼び出す前のアプリへ自動で貼り付ける（直接貼り付け）",
+            variable=self.paste_var).grid(row=4, column=0, columnspan=2, sticky="w", pady=(14, 0))
+
         self.confirm_var = tk.BooleanVar(value=confirm_delete)
         ttk.Checkbutton(frm, text="削除の前に確認する", variable=self.confirm_var).grid(
-            row=4, column=0, columnspan=2, sticky="w", pady=(14, 0))
+            row=5, column=0, columnspan=2, sticky="w", pady=(8, 0))
 
         btns = ttk.Frame(frm)
-        btns.grid(row=5, column=0, columnspan=2, sticky="e", pady=(16, 0))
+        btns.grid(row=6, column=0, columnspan=2, sticky="e", pady=(16, 0))
         ttk.Button(btns, text="キャンセル", command=self._cancel).pack(side="left", padx=(0, 6))
         primary_button(btns, accent, "OK", self._ok).pack(side="left")
 
@@ -654,6 +686,7 @@ class SettingsDialog(tk.Toplevel):
             "accent": self._hex(),
             "hotkey": self.hk_var.get().strip().lower(),
             "confirm_delete": self.confirm_var.get(),
+            "paste_back": self.paste_var.get(),
         }
         self.destroy()
 
@@ -710,53 +743,61 @@ class InputDialog(tk.Toplevel):
 # ---------------------------------------------------------------------------
 class StamperApp(tk.Tk):
     ARM_TIMEOUT = 4.0          # 機密: 1回目から何秒以内に2回目をするか
-    BG = "#F5F2FB"
-    INK = "#3A2E5C"
-    SUB = "#9A8FB0"
-    ROW_BG = "#FFFFFF"
-    SECRET_BG = "#FFF6EA"
+    # エディトリアル（紙 / 墨 / 罫）パレット
+    PAPER = "#FBFAF7"
+    PAPER2 = "#F6F4EF"
+    PAGE = "#F0EEE9"
+    WHITE = "#FFFFFF"
+    INK = "#1A1A1A"
+    INK2 = "#4A4A4A"
+    INK3 = "#8A8A8A"
+    INK4 = "#B8B6B1"
+    LINE = "#E4E2DD"
+    LINE2 = "#F3F2EF"
+    KBD_BD = "#E3E1DC"
+    WARN = "#B14A3A"
+    SECRET_BG = "#FCF7EF"
     FAV_KEY = "fav"
 
     def __init__(self):
         super().__init__()
         self.title(f"{APP_TITLE} v{APP_VERSION}")
-        self.geometry("560x650")
-        self.minsize(470, 470)
-        self.configure(bg=self.BG)
+        self.geometry("580x680")
+        self.minsize(480, 480)
+        self.configure(bg=self.PAGE)
         try:
             self.iconbitmap(resource_path("icon.ico"))
         except Exception:
             pass
 
         self.data = load_data()
-        # アクセント色（設定）から派生色を計算
         self.ACCENT = self.data.get("settings", {}).get("accent", DEFAULT_ACCENT)
         self._recolor_derived()
 
         self._armed = None
         self._armed_at = 0.0
         self._search = ""
-        self._search_all = True    # 検索は常に全フォルダ横断（トグルは設けない）
-        self._tip = None
-        self._tip_after = None
+        self._search_all = True    # 検索は常に全フォルダ横断
         self._tab_menu_idx = None
-        self._drag_from = None     # 行ドラッグ並び替えの掴み元（表示インデックス）
-        self._reorderable = True   # 現在の表示が並び替え可能か
-        self._current = 0          # 選択中フォルダの index
-        self._fav = False          # 「よく使う」タブを表示中か
-        self._tabdrag = None       # タブドラッグ状態
-        self._tab_chips = []       # [(chip, key)] key は int か "fav"
-        self._visible = []         # 現在表示中の [(fi, idx, item)]
-        self._rows = []            # 現在表示中の行メタ [{frame, selbar, base}]
-        self._sel = -1             # キーボード選択中の表示インデックス
+        self._drag_from = None     # 行ドラッグの掴み元（表示インデックス）
+        self._drag_moved = False
+        self._drop_line = None
+        self._reorderable = True
+        self._current = 0
+        self._fav = False
+        self._prev_hwnd = None     # 直接貼り付け先（呼び出し前に前面だったウィンドウ）
+        self._own_hwnd = None
+        self._tabdrag = None
+        self._tab_chips = []
+        self._visible = []         # [(fi, idx, item)]
+        self._rows = []            # [card meta dict]
+        self._sel = -1
         self._icons = self._load_icons()
 
         self._setup_style()
 
         self._hk_queue = queue.Queue()
         self.hotkeys = HotkeyManager(lambda: self._hk_queue.put(True))
-
-        # 常駐トレイ（× で隠して常駐。クリック/メニューから復帰・終了）
         self._tray_queue = queue.Queue()
         self.tray = TrayIcon(resource_path("icon.ico"), APP_TITLE,
                              on_show=lambda: self._tray_queue.put("show"),
@@ -795,19 +836,15 @@ class StamperApp(tk.Tk):
         return icons
 
     def _recolor_derived(self):
-        self.HOVER_BG = self._lighten(self.ACCENT, 0.80)
-        self.ROW_BG_ALT = self._lighten(self.ACCENT, 0.96)
-        self.ICON_HOVER = self._lighten(self.ACCENT, 0.72)
-        self.TAB_STRIP = self._lighten(self.ACCENT, 0.90)
+        self.ACC = self.ACCENT
+        self.ACC_FG = fg_on(self.ACCENT)
 
     @staticmethod
-    def _tab_text(name, n=7):
-        """タブ表示名。長い場合は … で省略（全名はデータに保持）。"""
+    def _tab_text(name, n=8):
         return name if len(name) <= n else name[:n] + "…"
 
     @staticmethod
     def _lighten(hex_color, factor):
-        """色を factor（0=元色, 1=白）だけ白方向へ寄せる。"""
         h = hex_color.lstrip("#")
         r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
         r = int(r + (255 - r) * factor)
@@ -821,26 +858,18 @@ class StamperApp(tk.Tk):
             style.theme_use("clam")
         except tk.TclError:
             pass
-        style.configure("TButton", font=("Yu Gothic UI", 10))
+        style.configure("TButton", font=(F_UI, 10))
+        # スクロールバーを地味な紙色に
+        style.configure("Vertical.TScrollbar", background=self.PAPER2,
+                        troughcolor=self.PAPER, bordercolor=self.PAPER,
+                        arrowcolor=self.INK3, relief="flat")
 
     def _apply_accent(self, color):
         self.ACCENT = color
         self._recolor_derived()
-        for w in getattr(self, "_accent_widgets", []):
-            try:
-                w.config(bg=color)
-            except tk.TclError:
-                pass
-        tw = text_on_white(color)
-        for w in getattr(self, "_accent_fg_widgets", []):
-            try:
-                w.config(fg=tw)
-            except tk.TclError:
-                pass
-        if getattr(self, "_status_bar", None) is not None:
-            self._status_bar.config(bg=self._lighten(color, 0.85))
         self._render_tabbar()
         self._fill_rows()
+        self._draw_fab()
 
     # -- メニューバー -------------------------------------------------------
     def _build_menu(self):
@@ -872,16 +901,6 @@ class StamperApp(tk.Tk):
 
         self.config(menu=menubar)
 
-    def _make_chip(self, parent, text, command):
-        """アクセント帯に置く白いボタン風ラベル。"""
-        lbl = tk.Label(parent, text=text, bg="#FFFFFF", fg=text_on_white(self.ACCENT),
-                       cursor="hand2", font=("Yu Gothic UI", 10, "bold"), padx=12, pady=6)
-        lbl.bind("<Button-1>", lambda e: command())
-        lbl.bind("<Enter>", lambda e: lbl.config(bg=self._lighten(self.ACCENT, 0.88)))
-        lbl.bind("<Leave>", lambda e: lbl.config(bg="#FFFFFF"))
-        self._accent_fg_widgets.append(lbl)
-        return lbl
-
     def _shortcuts_help(self):
         win = tk.Toplevel(self)
         win.title("キーボード操作")
@@ -891,14 +910,14 @@ class StamperApp(tk.Tk):
         frm = ttk.Frame(win, padding=18)
         frm.pack(fill="both", expand=True)
         rows = [
-            ("↑ / ↓", "選択する行を移動"),
-            ("Enter", "選択中の行をコピー"),
-            ("1 〜 9", "番号の行を即コピー（検索が空のとき）"),
+            ("↑ / ↓", "選択するカードを移動"),
+            ("Enter", "選択中のカードをコピー"),
+            ("1 〜 9", "番号のカードを即コピー（検索が空のとき）"),
             ("Esc", "検索を消す → もう一度で最小化"),
             ("ホットキー", "どこからでも最前面に呼び出し（設定で変更）"),
         ]
         for i, (k, v) in enumerate(rows):
-            ttk.Label(frm, text=k, font=("Consolas", 10, "bold"), width=10).grid(
+            ttk.Label(frm, text=k, font=(F_MONO, 10, "bold"), width=10).grid(
                 row=i, column=0, sticky="w", pady=2)
             ttk.Label(frm, text=v).grid(row=i, column=1, sticky="w", pady=2)
         primary_button(frm, self.ACCENT, "閉じる", win.destroy).grid(
@@ -914,12 +933,11 @@ class StamperApp(tk.Tk):
         add_dialog_header(win, self.ACCENT, "バージョン情報")
         frm = ttk.Frame(win, padding=18)
         frm.pack(fill="both", expand=True)
-        ttk.Label(frm, text=APP_TITLE, font=("Yu Gothic UI", 14, "bold")).pack(anchor="w")
-        ttk.Label(frm, text=f"v{APP_VERSION}", foreground=self.SUB).pack(anchor="w")
-        ttk.Label(frm, text=f"作者: {AUTHOR}", font=("Yu Gothic UI", 10)).pack(
-            anchor="w", pady=(10, 0))
+        ttk.Label(frm, text=APP_TITLE, font=(F_UI, 14, "bold")).pack(anchor="w")
+        ttk.Label(frm, text=f"v{APP_VERSION}", foreground=self.INK3).pack(anchor="w")
+        ttk.Label(frm, text=f"作者: {AUTHOR}", font=(F_UI, 10)).pack(anchor="w", pady=(10, 0))
         link = tk.Label(frm, text=AUTHOR_URL, fg="#1A0DAB", cursor="hand2",
-                        font=("Yu Gothic UI", 10, "underline"))
+                        font=(F_UI, 10, "underline"))
         link.pack(anchor="w", pady=(2, 12))
         link.bind("<Button-1>", lambda e: webbrowser.open(AUTHOR_URL))
         primary_button(frm, self.ACCENT, "閉じる", win.destroy).pack(anchor="e")
@@ -929,7 +947,7 @@ class StamperApp(tk.Tk):
     def open_settings(self):
         s = self.data.setdefault("settings", {})
         dlg = SettingsDialog(self, self.ACCENT, s.get("hotkey", ""),
-                             s.get("confirm_delete", True))
+                             s.get("confirm_delete", True), s.get("paste_back", True))
         if not dlg.result:
             return
         r = dlg.result
@@ -942,6 +960,7 @@ class StamperApp(tk.Tk):
                 if self.hotkeys.available:
                     self.hotkeys.start(r["hotkey"])
         s["confirm_delete"] = r["confirm_delete"]
+        s["paste_back"] = r["paste_back"]
         s["accent"] = r["accent"]
         save_data(self.data)
         self._apply_accent(r["accent"])
@@ -949,55 +968,129 @@ class StamperApp(tk.Tk):
 
     # -- UI構築 -------------------------------------------------------------
     def _build_ui(self):
-        # ヘッダー＝ツールバー（アクセント帯）。名前はタイトルバーにあるので置かない。
-        header = tk.Frame(self, bg=self.ACCENT)
+        # ヘッダー：タブ（左・折り返し）＋検索（右）
+        header = tk.Frame(self, bg=self.PAPER)
         header.pack(fill="x")
-        self._accent_widgets = [header]
-        self._accent_fg_widgets = []
 
-        # 左：意味のあるボタン（白いチップ）
-        self._make_chip(header, "＋ 定型文を追加", self.add_item).pack(
-            side="left", padx=(12, 6), pady=10)
-        self._make_chip(header, "クリップボードから登録", self.add_from_clipboard).pack(
-            side="left", pady=10)
-
-        # 右：検索（大きめ・常に全フォルダ横断）。文字があれば ✕ で消せる。
         self._search_var = tk.StringVar()
-        sframe = tk.Frame(header, bg="#FFFFFF")
-        sframe.pack(side="right", padx=(6, 12), pady=10)
+        sframe = tk.Frame(header, bg=self.LINE2)
+        sframe.pack(side="right", padx=14, pady=10)
         sicon = self._icons.get("search")
         if sicon is not None:
-            tk.Label(sframe, image=sicon, bg="#FFFFFF").pack(side="left", padx=(8, 0))
-        self._search_entry = tk.Entry(sframe, textvariable=self._search_var, width=24,
-                                      relief="flat", bg="#FFFFFF", font=("Yu Gothic UI", 11))
+            tk.Label(sframe, image=sicon, bg=self.LINE2).pack(side="left", padx=(8, 0))
+        self._search_entry = tk.Entry(sframe, textvariable=self._search_var, width=20,
+                                      relief="flat", bg=self.LINE2, fg=self.INK,
+                                      insertbackground=self.INK, font=(F_UI, 11))
         self._search_entry.pack(side="left", padx=6, ipady=5)
-        self._clear_btn = tk.Label(sframe, text="✕", bg="#FFFFFF", fg=self.SUB,
-                                   cursor="hand2", font=("Yu Gothic UI", 10, "bold"), padx=2)
+        self._clear_btn = tk.Label(sframe, text="✕", bg=self.LINE2, fg=self.INK3,
+                                   cursor="hand2", font=(F_UI, 10, "bold"), padx=4)
         self._clear_btn.bind("<Button-1>", lambda e: self._clear_search())
         self._clear_btn.bind("<Enter>", lambda e: self._clear_btn.config(fg=self.INK))
-        self._clear_btn.bind("<Leave>", lambda e: self._clear_btn.config(fg=self.SUB))
+        self._clear_btn.bind("<Leave>", lambda e: self._clear_btn.config(fg=self.INK3))
+        self._search_entry.bind("<FocusIn>", lambda e: self._search_focus(True))
+        self._search_entry.bind("<FocusOut>", lambda e: self._search_focus(False))
         self._search_var.trace_add("write", lambda *a: self._on_search())
 
-        # フォルダのタブ（自前タブバー：ドラッグ並び替え・折り返し・上線つき）
-        self._tabbar = tk.Frame(self, bg=self.TAB_STRIP)
-        self._tabbar.pack(fill="x", padx=8, pady=(8, 0))
+        # タブ領域：[◁][タブ（1行・はみ出すと横スクロール）][▷][＋]
+        tabwrap = tk.Frame(header, bg=self.PAPER)
+        tabwrap.pack(side="left", fill="x", expand=True, padx=(10, 4), pady=8)
+        self._tabwrap = tabwrap
+        self._tab_larr = tk.Label(tabwrap, text="◁", bg=self.PAPER, fg=self.INK3,
+                                  cursor="hand2", font=(F_UI, 11), padx=5)
+        self._tab_larr.bind("<Button-1>", lambda e: self._scroll_tabs(-1))
+        self._tab_rarr = tk.Label(tabwrap, text="▷", bg=self.PAPER, fg=self.INK3,
+                                  cursor="hand2", font=(F_UI, 11), padx=5)
+        self._tab_rarr.bind("<Button-1>", lambda e: self._scroll_tabs(1))
+        self._tab_plus = self._make_plus_chip(tabwrap)
+        self._tab_plus.pack(side="right")
+        self._tabbar = tk.Frame(tabwrap, bg=self.PAPER, height=30)
+        self._tabbar.pack(side="left", fill="x", expand=True)
+        self._tabbar.pack_propagate(False)
         self._tabbar.bind("<Double-Button-1>", lambda e: self.add_folder())
         self._tabbar.bind("<Button-3>", self._on_tabbar_right)
         self._tabbar.bind("<Configure>", self._on_tabbar_configure)
         self._last_tabbar_w = 0
+        self._tab_offset = 0
+        self._tab_layout = []
+        self._tab_total = 0
 
-        # 定型文リスト（単一のスクロール領域。タブ選択で中身を入れ替える）
-        content = tk.Frame(self, bg=self.ROW_BG)
-        content.pack(fill="both", expand=True, padx=8, pady=(0, 4))
+        tk.Frame(self, bg=self.LINE, height=1).pack(fill="x")
+
+        # メタ行：フォルダ名・件数・並び替えヒント
+        meta = tk.Frame(self, bg=self.PAPER)
+        meta.pack(fill="x")
+        self._meta_name = tk.Label(meta, bg=self.PAPER, fg=self.INK2,
+                                   font=(F_UI, 10, "bold"))
+        self._meta_name.pack(side="left", padx=(18, 8), pady=(8, 6))
+        self._meta_count = tk.Label(meta, bg=self.PAPER, fg=self.INK3, font=(F_UI, 9))
+        self._meta_count.pack(side="left", pady=(8, 6))
+        self._meta_hint = tk.Label(meta, bg=self.PAPER, fg=self.INK4, font=(F_UI, 9),
+                                   text="⠿  ドラッグで並び替え")
+        self._meta_hint.pack(side="right", padx=(8, 18), pady=(8, 6))
+
+        # 本文リスト（カード）
+        content = tk.Frame(self, bg=self.PAPER)
+        content.pack(fill="both", expand=True)
+        self._content = content
         self._canvas, self._inner = self._make_scroller(content)
 
-        # ステータスバー
-        self.status = tk.StringVar(
-            value="クリック / Enter でコピー ・ ↑↓ で選択 ・ 1〜9 で即コピー ・ Esc で隠す")
-        self._status_bar = tk.Label(self, textvariable=self.status, anchor="w",
-                                     bg=self._lighten(self.ACCENT, 0.85), fg=self.INK,
-                                     font=("Yu Gothic UI", 9), padx=8, pady=3)
-        self._status_bar.pack(fill="x", side="bottom")
+        # 追加 FAB（右下に浮かべる丸ボタン）
+        self._fab = tk.Canvas(content, width=46, height=46, highlightthickness=0,
+                              bg=self.PAPER, cursor="hand2")
+        self._fab.place(relx=1.0, rely=1.0, x=-22, y=-18, anchor="se")
+        self._fab.bind("<Button-1>", lambda e: self.add_item())
+        self._fab.bind("<Enter>", lambda e: self._draw_fab(True))
+        self._fab.bind("<Leave>", lambda e: self._draw_fab(False))
+        self._draw_fab()
+
+        # ステータスバー（kbd ヒント＋直近メッセージ）
+        tk.Frame(self, bg=self.LINE, height=1).pack(side="bottom", fill="x")
+        sb = tk.Frame(self, bg=self.PAPER2)
+        sb.pack(side="bottom", fill="x")
+        self.status = tk.StringVar(value="")
+        tk.Label(sb, textvariable=self.status, bg=self.PAPER2, fg=self.INK3,
+                 font=(F_UI, 9)).pack(side="right", padx=12, pady=3)
+        hints = tk.Frame(sb, bg=self.PAPER2)
+        hints.pack(side="left", padx=10, pady=3)
+        for keys, label in [(["↵"], "コピー"), (["1", "9"], "即コピー"),
+                            (["↑↓"], "選択"), (["Esc"], "隠す")]:
+            grp = tk.Frame(hints, bg=self.PAPER2)
+            grp.pack(side="left", padx=(0, 12))
+            for ki, k in enumerate(keys):
+                if ki == 1:
+                    tk.Label(grp, text="–", bg=self.PAPER2, fg=self.INK4,
+                             font=(F_UI, 9)).pack(side="left", padx=1)
+                self._kbd(grp, k).pack(side="left")
+            tk.Label(grp, text=label, bg=self.PAPER2, fg=self.INK3,
+                     font=(F_UI, 9)).pack(side="left", padx=(4, 0))
+
+    def _kbd(self, parent, text):
+        return tk.Label(parent, text=text, bg=self.LINE2, fg=self.INK2,
+                        font=(F_MONO, 8), padx=4, pady=0,
+                        highlightthickness=1, highlightbackground=self.KBD_BD)
+
+    def _search_focus(self, on):
+        bg = self.WHITE if on else self.LINE2
+        for w in (self._search_entry, self._clear_btn,
+                  self._search_entry.master):
+            try:
+                w.config(bg=bg)
+            except tk.TclError:
+                pass
+        for child in self._search_entry.master.winfo_children():
+            try:
+                child.config(bg=bg)
+            except tk.TclError:
+                pass
+
+    def _draw_fab(self, hover=False):
+        c = self._fab
+        c.delete("all")
+        fill = darken(self.ACC, 0.14) if (hover and _lum(self.ACC) > 0.2) else self.ACC
+        if hover and _lum(self.ACC) <= 0.2:
+            fill = "#000000"
+        c.create_oval(4, 3, 44, 43, fill=fill, outline="")
+        c.create_text(24, 22, text="＋", fill=self.ACC_FG, font=(F_UI, 17, "bold"))
 
     def _clear_search(self):
         self._search_var.set("")
@@ -1019,7 +1112,6 @@ class StamperApp(tk.Tk):
         self.bind("<Key>", self._win_digit)
 
     def _entry_digit(self, event):
-        # 検索が空のときだけ 1〜9 を「即コピー」に使う（入力させない）。
         if event.char in "123456789" and self._search.strip() == "":
             self._copy_index(int(event.char))
             return "break"
@@ -1061,7 +1153,7 @@ class StamperApp(tk.Tk):
             fi, idx, _ = self._visible[i]
             self._row_click(fi, idx)
 
-    # -- 自前タブバー（フォルダ） -------------------------------------------
+    # -- 自前タブバー（フォルダ・ピル型） -----------------------------------
     def _has_pins(self):
         return any(it.get("pinned") for f in self.data["folders"] for it in f["items"])
 
@@ -1073,7 +1165,7 @@ class StamperApp(tk.Tk):
             for w in self._tabbar.winfo_children():
                 w.destroy()
             self._tab_chips = []
-            self._tabbar.config(bg=self.TAB_STRIP)
+            self._tab_layout = []
 
             entries = []
             if self._has_pins():
@@ -1081,34 +1173,69 @@ class StamperApp(tk.Tk):
             for idx, folder in enumerate(self.data["folders"]):
                 entries.append((idx, folder))
 
-            created = []
-            for key, folder in entries:
-                created.append((self._make_tab_chip(key, folder), key))
-            plus = self._make_plus_chip()
+            created = [(self._make_tab_chip(key, folder), key) for key, folder in entries]
             self.update_idletasks()
 
-            avail = self._tabbar.winfo_width()
-            if avail <= 1:
-                avail = max(self.winfo_width() - 16, 320)
-            heights = [c.winfo_reqheight() for c, _ in created] + [plus.winfo_reqheight(), 28]
-            rowh = max(heights) + 4
-            gap, x, y = 3, 0, 0
+            rowh = max([c.winfo_reqheight() for c, _ in created] + [26])
+            gap, x = 3, 0
             for chip, key in created:
                 w = chip.winfo_reqwidth()
-                if x > 0 and x + w > avail:
-                    y += 1
-                    x = 0
-                chip.place(x=x, y=y * rowh)
+                self._tab_layout.append((chip, key, x, w))
                 self._tab_chips.append((chip, key))
                 x += w + gap
-            pw = plus.winfo_reqwidth()
-            if x > 0 and x + pw > avail:
-                y += 1
-                x = 0
-            plus.place(x=x, y=y * rowh)
-            self._tabbar.config(height=(y + 1) * rowh)
+            self._tab_total = max(x - gap, 0)
+            self._tabbar.config(height=rowh)
+            self._place_tabs()
+            self._update_tab_arrows()
         finally:
             self._rendering = False
+
+    def _avail(self):
+        w = self._tabbar.winfo_width()
+        return w if w > 1 else max(self.winfo_width() - 260, 200)
+
+    def _max_offset(self):
+        return max(0, self._tab_total - self._avail())
+
+    def _place_tabs(self):
+        self._tab_offset = min(max(self._tab_offset, 0), self._max_offset())
+        off = self._tab_offset
+        for chip, key, bx, w in self._tab_layout:
+            try:
+                chip.place(x=bx - off, y=0)
+            except tk.TclError:
+                pass
+
+    def _scroll_tabs(self, direction):
+        maxoff = self._max_offset()
+        if maxoff <= 0:
+            return
+        step = max(int(self._avail() * 0.7), 80)
+        self._tab_offset = min(max(self._tab_offset + direction * step, 0), maxoff)
+        self._place_tabs()
+        self._update_tab_arrows()
+
+    def _update_tab_arrows(self):
+        maxoff = self._max_offset()
+        self._tab_larr.pack_forget()
+        self._tab_rarr.pack_forget()
+        if maxoff > 0:
+            self._tab_larr.pack(side="left", before=self._tabbar)
+            self._tab_rarr.pack(side="right", before=self._tab_plus)
+            self._tab_larr.config(fg=self.INK3 if self._tab_offset > 0 else self.INK4)
+            self._tab_rarr.config(fg=self.INK3 if self._tab_offset < maxoff else self.INK4)
+
+    def _scroll_into_view(self, key):
+        avail = self._avail()
+        for chip, k, bx, w in self._tab_layout:
+            if k == key:
+                if bx < self._tab_offset:
+                    self._tab_offset = bx
+                elif bx + w > self._tab_offset + avail:
+                    self._tab_offset = bx + w - avail
+                self._place_tabs()
+                self._update_tab_arrows()
+                return
 
     def _is_selected_key(self, key):
         if key == self.FAV_KEY:
@@ -1117,19 +1244,16 @@ class StamperApp(tk.Tk):
 
     def _make_tab_chip(self, key, folder):
         sel = self._is_selected_key(key)
-        strip = self.TAB_STRIP
-        chip = tk.Frame(self._tabbar, bg=strip, cursor="hand2")
-        top = tk.Frame(chip, bg=(self.ACCENT if sel else strip), height=3)
-        top.pack(fill="x")
-        lblbg = self.ROW_BG if sel else strip
-        fg = text_on_white(self.ACCENT) if sel else self.SUB
-        font = ("Yu Gothic UI", 10, "bold" if sel else "normal")
+        bg = self.ACC if sel else self.PAPER
+        fg = self.ACC_FG if sel else self.INK3
+        font = (F_UI, 10, "bold" if sel else "normal")
+        chip = tk.Frame(self._tabbar, bg=bg, cursor="hand2")
         if key == self.FAV_KEY:
-            lbl = tk.Label(chip, text=" お気に入り", image=self._icons.get("star"),
-                           compound="left", bg=lblbg, fg=fg, padx=12, pady=6, font=font)
+            lbl = tk.Label(chip, text="★ お気に入り", bg=bg, fg=fg,
+                           padx=12, pady=5, font=font)
         else:
             lbl = tk.Label(chip, text=self._tab_text(folder["name"]),
-                           bg=lblbg, fg=fg, padx=14, pady=6, font=font)
+                           bg=bg, fg=fg, padx=12, pady=5, font=font)
         lbl.pack(fill="both", expand=True)
 
         for w in (chip, lbl):
@@ -1140,36 +1264,40 @@ class StamperApp(tk.Tk):
                 w.bind("<Double-Button-1>", lambda e, k=key: self.rename_folder(k))
                 w.bind("<Button-3>", lambda e, k=key: self._tab_context(e, k))
         if not sel:
-            lbl.bind("<Enter>",
-                     lambda e, l=lbl: l.config(bg=self._lighten(self.ACCENT, 0.82)), add="+")
-            lbl.bind("<Leave>", lambda e, l=lbl: l.config(bg=strip), add="+")
+            for w in (chip, lbl):
+                w.bind("<Enter>", lambda e, c=chip, l=lbl: self._tab_hover(c, l, True), add="+")
+                w.bind("<Leave>", lambda e, c=chip, l=lbl: self._tab_hover(c, l, False), add="+")
         chip._lbl = lbl
-        chip._top = top
         chip._key = key
         return chip
 
-    def _make_plus_chip(self):
-        plus = tk.Label(self._tabbar, text="＋", bg=self.TAB_STRIP,
-                        fg=text_on_white(self.ACCENT), cursor="hand2",
-                        font=("Yu Gothic UI", 13, "bold"), padx=8, pady=4)
+    def _tab_hover(self, chip, lbl, on):
+        try:
+            bg = self.LINE2 if on else self.PAPER
+            chip.config(bg=bg)
+            lbl.config(bg=bg, fg=self.INK2 if on else self.INK3)
+        except tk.TclError:
+            pass
+
+    def _make_plus_chip(self, parent):
+        plus = tk.Label(parent, text="＋", bg=self.PAPER, fg=self.INK3,
+                        cursor="hand2", font=(F_UI, 12, "bold"), padx=8, pady=4)
         plus.bind("<Button-1>", lambda e: self.add_folder())
-        plus.bind("<Enter>", lambda e: plus.config(bg=self._lighten(self.ACCENT, 0.78)))
-        plus.bind("<Leave>", lambda e: plus.config(bg=self.TAB_STRIP))
+        plus.bind("<Enter>", lambda e: plus.config(bg=self.LINE2, fg=self.INK))
+        plus.bind("<Leave>", lambda e: plus.config(bg=self.PAPER, fg=self.INK3))
         return plus
 
     def _restyle_tabs(self):
         """チップを破棄せず色だけ更新（破棄するとダブルクリックが消える）。"""
-        strip = self.TAB_STRIP
         for chip, key in self._tab_chips:
             try:
                 if not chip.winfo_exists():
                     continue
                 sel = self._is_selected_key(key)
-                chip._top.config(bg=self.ACCENT if sel else strip)
-                chip._lbl.config(
-                    bg=self.ROW_BG if sel else strip,
-                    fg=text_on_white(self.ACCENT) if sel else self.SUB,
-                    font=("Yu Gothic UI", 10, "bold" if sel else "normal"))
+                bg = self.ACC if sel else self.PAPER
+                chip.config(bg=bg)
+                chip._lbl.config(bg=bg, fg=self.ACC_FG if sel else self.INK3,
+                                 font=(F_UI, 10, "bold" if sel else "normal"))
             except tk.TclError:
                 continue
 
@@ -1183,6 +1311,7 @@ class StamperApp(tk.Tk):
             self._current = key
         self._disarm()
         self._restyle_tabs()
+        self._scroll_into_view(key)
         self._fill_rows()
 
     def _on_tabbar_configure(self, event):
@@ -1254,41 +1383,31 @@ class StamperApp(tk.Tk):
         return None
 
     def _make_scroller(self, parent):
-        container = tk.Frame(parent, bg=self.ROW_BG)
+        container = tk.Frame(parent, bg=self.PAPER)
         container.pack(fill="both", expand=True)
-        canvas = tk.Canvas(container, bg=self.ROW_BG, highlightthickness=0)
-        sb = ttk.Scrollbar(container, orient="vertical", command=canvas.yview)
+        canvas = tk.Canvas(container, bg=self.PAPER, highlightthickness=0)
+        sb = ttk.Scrollbar(container, orient="vertical", command=canvas.yview,
+                           style="Vertical.TScrollbar")
         canvas.configure(yscrollcommand=sb.set)
         sb.pack(side="right", fill="y")
         canvas.pack(side="left", fill="both", expand=True)
 
-        inner = tk.Frame(canvas, bg=self.ROW_BG)
+        inner = tk.Frame(canvas, bg=self.PAPER)
         win = canvas.create_window((0, 0), window=inner, anchor="nw")
 
-        def refresh_region(_=None):
-            # 内容がビューより短いときは canvas の高さまで内部を広げ、
-            # 余白への過剰スクロールを防ぐ。長いときは内容高でスクロール可能に。
-            ch = canvas.winfo_height()
-            need = inner.winfo_reqheight()
-            canvas.itemconfigure(win, height=max(need, ch))
-            canvas.configure(scrollregion=(0, 0, canvas.winfo_width(), max(need, ch)))
-            if need <= ch:                       # 収まるならスクロールバーを隠す
-                sb.pack_forget()
-                canvas.yview_moveto(0)
-            elif not sb.winfo_ismapped():
-                sb.pack(side="right", fill="y")
+        def on_inner(_=None):
+            canvas.configure(scrollregion=canvas.bbox("all"))
+        inner.bind("<Configure>", on_inner)
+        canvas.bind("<Configure>", lambda e: canvas.itemconfigure(win, width=e.width))
 
-        inner.bind("<Configure>", refresh_region)
-        canvas.bind("<Configure>",
-                    lambda e: (canvas.itemconfigure(win, width=e.width), refresh_region()))
-
-        def wheel(e):
-            # 内容がビュー以下のときはスクロールしない
-            if inner.winfo_reqheight() <= canvas.winfo_height():
+        def on_wheel(e):
+            # モーダル中は背面を動かさない。カードの上でも効くよう常時バインドする
+            # （canvas の Enter/Leave で bind/unbind するとカードに乗った瞬間に切れる）。
+            if self.grab_current() is not None:
                 return
-            canvas.yview_scroll(int(-e.delta / 120), "units")
-        canvas.bind("<Enter>", lambda e: canvas.bind_all("<MouseWheel>", wheel))
-        canvas.bind("<Leave>", lambda e: canvas.unbind_all("<MouseWheel>"))
+            if inner.winfo_reqheight() > canvas.winfo_height():
+                canvas.yview_scroll(int(-e.delta / 120), "units")
+        self.bind_all("<MouseWheel>", on_wheel)
         return canvas, inner
 
     # -- 表示する行の収集 ---------------------------------------------------
@@ -1312,9 +1431,24 @@ class StamperApp(tk.Tk):
             entries = [e for e in entries
                        if q in item_label(e[2]).lower() or q in e[2].get("body", "").lower()]
         if not self._fav:
-            # ピン留めを上へ（安定ソートで同グループ内の手動並びは維持）
             entries.sort(key=lambda e: 0 if e[2].get("pinned") else 1)
         return entries
+
+    def _update_meta(self, shown, total):
+        if self._fav:
+            name = "お気に入り"
+        else:
+            fi = self._current_folder_index()
+            name = self.data["folders"][fi]["name"] if fi is not None else ""
+        self._meta_name.config(text=name)
+        q = self._search.strip()
+        if q:
+            self._meta_count.config(text=f"{shown}件（{total}件中・全フォルダ検索）")
+        else:
+            self._meta_count.config(text=f"{shown}件")
+        self._meta_hint.pack_forget()
+        if self._reorderable and shown > 1:
+            self._meta_hint.pack(side="right", padx=(8, 18), pady=(8, 6))
 
     def _fill_rows(self, *_):
         if self._fav and not self._has_pins():
@@ -1323,167 +1457,177 @@ class StamperApp(tk.Tk):
         canvas, inner = self._canvas, self._inner
         for w in inner.winfo_children():
             w.destroy()
+        self._drop_line = None
 
         entries = self._collect_entries()
         self._visible = entries
         self._rows = []
         q = self._search.strip()
         show_folder = self._fav or (self._search_all and bool(q))
-        badges = (q == "")
         self._reorderable = (not self._fav) and (not (self._search_all and q)) and (q == "")
 
+        total = 0
+        if not self._fav:
+            fi = self._current_folder_index()
+            total = len(self.data["folders"][fi]["items"]) if fi is not None else 0
+        else:
+            total = sum(1 for f in self.data["folders"] for it in f["items"] if it.get("pinned"))
+
         for j, (fi, idx, item) in enumerate(entries):
-            badge = (j + 1) if (badges and j < 9) else None
+            num = (j + 1) if j < 9 else "·"
             fname = self.data["folders"][fi]["name"] if show_folder else None
-            self._make_row(inner, fi, idx, item, j, badge=badge, folder_name=fname)
+            self._make_card(inner, fi, idx, item, j, num, fname)
 
         if not entries:
             if q:
-                msg = "一致する定型文がありません"
+                msg = f"「{q}」に該当する定型文はありません。"
             elif self._fav:
-                msg = "お気に入りに登録した定型文がここに集まります（★で登録）"
+                msg = "お気に入りはまだありません。\n★を押すとここに集まります。"
             else:
-                msg = "まだ定型文がありません（上の＋／ボタンから追加）"
-            tk.Label(inner, text=msg, bg=self.ROW_BG, fg=self.SUB,
-                     font=("Yu Gothic UI", 10), pady=24).pack(fill="x")
+                msg = "このフォルダはまだ空です。\n右下の ＋ で追加できます。"
+            tk.Label(inner, text=msg, bg=self.PAPER, fg=self.INK3,
+                     font=(F_UI, 11), justify="center", pady=60).pack(fill="x")
+        else:
+            tk.Frame(inner, bg=self.PAPER, height=70).pack(fill="x")  # FAB の下敷き
 
+        self._update_meta(len(entries), total)
         self._sel = 0 if entries else -1
         self._paint_sel()
         canvas.yview_moveto(0)
 
-    def _make_row(self, parent, fi, idx, item, rownum, badge=None, folder_name=None):
+    # -- カード -------------------------------------------------------------
+    def _make_card(self, parent, fi, idx, item, rownum, num, folder_name):
         secret = item.get("secret")
         pinned = item.get("pinned")
-        base = self.SECRET_BG if secret else (self.ROW_BG if rownum % 2 == 0 else self.ROW_BG_ALT)
-        row = tk.Frame(parent, bg=base)
-        row.pack(fill="x", padx=6, pady=3)
+        cardbg = self.SECRET_BG if secret else self.WHITE
+        card = tk.Frame(parent, bg=cardbg, highlightthickness=1,
+                        highlightbackground=self.LINE, highlightcolor=self.LINE)
+        card.pack(fill="x", padx=12, pady=4)
+        pad = tk.Frame(card, bg=cardbg)
+        pad.pack(fill="x", padx=14, pady=8)
 
-        # キーボード選択を示す左端のバー（ホバーとは独立して着色しない）
-        selbar = tk.Frame(row, bg=base, width=4)
-        selbar.pack(side="left", fill="y")
+        # 見出し行：グリップ・★・鍵・タイトル（小ラベル）・番号
+        tl = tk.Frame(pad, bg=cardbg)
+        tl.pack(fill="x")
 
-        copy_targets = [row]    # クリックでコピーする領域
-        recolor = [row]         # ホバー時に一緒に着色する領域（行全体）
-
-        # 番号バッジ（検索が空のとき先頭9件）
-        if badge is not None:
-            bd = tk.Label(row, text=str(badge), bg=base, fg=text_on_white(self.ACCENT),
-                          font=("Yu Gothic UI", 9, "bold"), width=2)
-            bd.pack(side="left", padx=(4, 0), pady=8)
-            copy_targets.append(bd)
-            recolor.append(bd)
-
-        # ドラッグ・グリップ（左端を摘んで並び替え）
-        grip = tk.Label(row, bg=base, cursor="fleur")
-        gimg = self._icons.get("grip")
-        if gimg is not None:
-            grip.config(image=gimg)
-        else:
-            grip.config(text="⋮", fg=self.SUB, font=("Yu Gothic UI", 12))
-        grip.pack(side="left", padx=(4, 2), pady=8)
+        grip = tk.Label(tl, bg=cardbg, cursor="fleur",
+                        image=self._icons.get("blank"))
+        grip.pack(side="left", padx=(0, 6))
         grip.bind("<ButtonPress-1>", lambda e, j=rownum: self._drag_start(j))
         grip.bind("<B1-Motion>", self._drag_motion)
         grip.bind("<ButtonRelease-1>", self._drag_end)
-        recolor.append(grip)
 
-        # 鍵アイコン（機密のみ。開錠中は unlock）
-        lk = tk.Label(row, bg=base)
-        if secret:
-            armed = self._armed == (fi, idx)
-            img = self._icons.get("unlock" if armed else "lock")
-            if img is not None:
-                lk.config(image=img)
-            else:
-                lk.config(text="鍵", fg="#B8860B", font=("Yu Gothic UI", 10, "bold"))
-        else:
-            blank = self._icons.get("blank")
-            if blank is not None:
-                lk.config(image=blank)
-        lk.pack(side="left", padx=(2, 4), pady=8)
-        copy_targets.append(lk)
-        recolor.append(lk)
-
-        # 右側アクション（pack rightは右→左：delete→edit＝表示は edit, delete）
-        del_lbl = self._icon_button(row, base, "delete",
-                                    lambda e, f=fi, i=idx: self.delete_item(f, i), fallback="削除")
-        edit_lbl = self._icon_button(row, base, "edit",
-                                     lambda e, f=fi, i=idx: self.edit_item(f, i), fallback="編集")
-        recolor += [del_lbl, edit_lbl]
-
-        # タイトル行：★お気に入り ＋ タイトル（太字）／その下に本文の冒頭（薄字）
-        title_text = item.get("title", "").strip()
-        body = item.get("body", "")
-        first = next((ln.strip() for ln in body.splitlines() if ln.strip()), "")
-        line1 = title_text or first or "(空の定型文)"
-        line2 = first if title_text else ""
-
-        tarea = tk.Frame(row, bg=base)
-        tarea.pack(side="left", fill="x", expand=True, pady=5)
-        row1 = tk.Frame(tarea, bg=base)
-        row1.pack(fill="x", anchor="w")
-
-        star = tk.Label(row1, bg=base, cursor="hand2")
-        simg = self._icons.get("star" if pinned else "star_off")
-        if simg is not None:
-            star.config(image=simg)
-        else:
-            star.config(text="★" if pinned else "☆",
-                        fg="#C6921E" if pinned else self.SUB, font=("Yu Gothic UI", 11))
+        star_col = text_on_white(self.ACC)
+        star = tk.Label(tl, bg=cardbg, cursor="hand2",
+                        text="★" if pinned else "☆",
+                        fg=(star_col if pinned else self.INK4), font=(F_UI, 12))
         star.pack(side="left", padx=(0, 5))
         star.bind("<Button-1>", lambda e, f=fi, i=idx: self._toggle_pin(f, i))
+        star.bind("<Enter>", lambda e, s=star, p=pinned, c=star_col:
+                  s.config(fg=c if p else self.INK2))
+        star.bind("<Leave>", lambda e, s=star, p=pinned, c=star_col:
+                  s.config(fg=c if p else self.INK4))
 
-        title = tk.Label(row1, text=line1, bg=base, fg=self.INK,
-                         font=("Yu Gothic UI", 11, "bold"), anchor="w")
-        title.pack(side="left")
-        copy_targets += [tarea, row1, title]
-        recolor += [tarea, row1, title, star]
-
-        sub_parts = []
+        title_text = item.get("title", "").strip()
         if folder_name:
-            sub_parts.append(f"［{folder_name}］")
-        if line2:
-            sub_parts.append(line2 if len(line2) <= 42 else line2[:42] + "…")
-        if sub_parts:
-            sub = tk.Label(tarea, text=" ".join(sub_parts), bg=base, fg=self.SUB,
-                           font=("Yu Gothic UI", 9), anchor="w")
-            sub.pack(fill="x", anchor="w")
-            copy_targets.append(sub)
-            recolor.append(sub)
+            title_text = f"［{folder_name}］{('  ' + title_text) if title_text else ''}"
+        if not title_text:
+            title_text = "無題"
+        if secret:
+            lkimg = self._icons.get("unlock" if self._armed == (fi, idx) else "lock")
+            lk = tk.Label(tl, bg=cardbg, image=lkimg)
+            lk.pack(side="left", padx=(0, 4))
+        title = tk.Label(tl, text=title_text, bg=cardbg, fg=self.INK3,
+                         font=(F_UI, 9, "bold"), anchor="w")
+        title.pack(side="left", fill="x", expand=True)
+        numlbl = tk.Label(tl, text=str(num), bg=cardbg, fg=self.INK4, font=(F_MONO, 10))
+        numlbl.pack(side="right")
 
-        for w in copy_targets:
+        # 本文（主役）
+        body = item.get("body", "").strip() or "（本文なし）"
+        if len(body) > 200:
+            body = body[:200] + "…"
+        bodylbl = tk.Label(pad, text=body, bg=cardbg, fg=self.INK, font=(F_UI, 12),
+                           justify="left", anchor="w", wraplength=440)
+        bodylbl.pack(fill="x", anchor="w", pady=(3, 0))
+        card.bind("<Configure>",
+                  lambda e, l=bodylbl: l.config(wraplength=max(e.width - 40, 200)))
+
+        # フッタ（ホバー/選択のときだけ出す＝普段はタイトル＋本文だけでコンパクト）
+        foot = tk.Frame(pad, bg=cardbg)
+        hint = "↵ でコピー" if num == "·" else f"↵ または {num} でコピー"
+        hintlbl = tk.Label(foot, text=hint, bg=cardbg, fg=cardbg, font=(F_UI, 9))
+        hintlbl.pack(side="left")
+        used = item.get("used", 0)
+        usedlbl = tk.Label(foot, text=(f"  ・  {used}回" if used else ""),
+                           bg=cardbg, fg=cardbg, font=(F_UI, 9))
+        usedlbl.pack(side="left")
+
+        acts = []
+        del_lbl = self._foot_act(foot, cardbg, "delete",
+                                 lambda e, f=fi, i=idx: self.delete_item(f, i))
+        edit_lbl = self._foot_act(foot, cardbg, "edit",
+                                  lambda e, f=fi, i=idx: self.edit_item(f, i))
+        acts = [del_lbl, edit_lbl]
+
+        # クリックでコピー（グリップ・★・編集削除を除く）
+        for w in (card, pad, tl, title, bodylbl, numlbl, foot, hintlbl, usedlbl):
             w.bind("<Button-1>", lambda e, f=fi, i=idx: self._row_click(f, i))
 
-        self._wire_hover(row, recolor, grip, item, base)
-        self._rows.append({"frame": row, "selbar": selbar, "base": base})
-        return row
+        meta = {"frame": card, "base": cardbg, "grip": grip, "num": numlbl,
+                "foot": foot, "foot_text": [hintlbl, usedlbl], "acts": acts,
+                "sel": False, "reorder": self._reorderable}
+        self._rows.append(meta)
+        card.bind("<Enter>", lambda e, m=meta: self._reveal_card(m, True), add="+")
+        card.bind("<Leave>", lambda e, m=meta: self._leave_card(m), add="+")
+        return card
 
-    def _icon_button(self, row, base, icon_name, command, fallback="", enabled=True):
-        lbl = tk.Label(row, bg=base)
-        img = self._icons.get(icon_name)
-        if not enabled:
-            blank = self._icons.get("blank")
-            if blank is not None:
-                lbl.config(image=blank)
-            else:
-                lbl.config(text="　", font=("Yu Gothic UI", 9))
-            lbl.pack(side="right", padx=(2, 8), pady=8)
-            return lbl
-        lbl.config(cursor="hand2")
-        if img is not None:
-            lbl.config(image=img)
-        else:
-            lbl.config(text=fallback, fg=self.SUB, font=("Yu Gothic UI", 9))
-        lbl.pack(side="right", padx=(2, 8), pady=8)
+    def _foot_act(self, foot, cardbg, icon_name, command):
+        lbl = tk.Label(foot, bg=cardbg, cursor="hand2", image=self._icons.get("blank"))
+        lbl.pack(side="right", padx=(6, 0))
         lbl.bind("<Button-1>", command)
+        lbl._real = self._icons.get(icon_name)
         return lbl
+
+    def _reveal_card(self, meta, on):
+        try:
+            sel = meta.get("sel", False)
+            show = on or sel
+            if show:
+                meta["foot"].pack(fill="x", pady=(6, 0))
+            else:
+                meta["foot"].pack_forget()
+            border = self.ACC if sel else (self.INK3 if on else self.LINE)
+            meta["frame"].config(highlightbackground=border, highlightcolor=border)
+            meta["grip"].config(
+                image=self._icons.get("grip") if (on and meta["reorder"])
+                else self._icons.get("blank"))
+            meta["num"].config(fg=self.ACC if sel else (self.INK3 if on else self.INK4))
+            for w in meta["foot_text"]:
+                w.config(fg=self.INK3 if show else meta["base"])
+            for lbl in meta["acts"]:
+                lbl.config(image=(lbl._real if show else self._icons.get("blank")))
+        except tk.TclError:
+            pass
+
+    def _leave_card(self, meta):
+        def check():
+            frame = meta["frame"]
+            try:
+                x, y = self.winfo_pointerxy()
+                w = self.winfo_containing(x, y)
+                inside = w is not None and (w is frame or str(w).startswith(str(frame) + "."))
+            except tk.TclError:
+                return
+            if not inside:
+                self._reveal_card(meta, False)
+        self.after(1, check)
 
     # -- キーボード選択の描画 -----------------------------------------------
     def _paint_sel(self):
         for j, meta in enumerate(self._rows):
-            try:
-                meta["selbar"].config(bg=self.ACCENT if j == self._sel else meta["base"])
-            except tk.TclError:
-                pass
+            meta["sel"] = (j == self._sel)
+            self._reveal_card(meta, False)
 
     def _ensure_visible(self, j):
         if not (0 <= j < len(self._rows)):
@@ -1500,69 +1644,9 @@ class StamperApp(tk.Tk):
         h = frame.winfo_height()
         top = canvas.canvasy(0)
         if y < top:
-            canvas.yview_moveto(max(y - 4, 0) / total)
+            canvas.yview_moveto(max(y - 6, 0) / total)
         elif y + h > top + ch:
-            canvas.yview_moveto((y + h - ch + 4) / total)
-
-    # -- ホバー（行全体を一様に着色＋全文ツールチップ） ----------------------
-    def _wire_hover(self, row, recolor, grip, item, base):
-        def enter(e):
-            for w in recolor:
-                try:
-                    w.config(bg=self.HOVER_BG)
-                except tk.TclError:
-                    pass
-            if e.widget is grip:        # ハンドル上ではヒントを出さない
-                self._hide_tip()
-            else:
-                self._schedule_tip(item)
-
-        def check_leave():
-            x, y = self.winfo_pointerxy()
-            w = self.winfo_containing(x, y)
-            inside = w is not None and (w is row or str(w).startswith(str(row) + "."))
-            if not inside:
-                for ww in recolor:
-                    try:
-                        ww.config(bg=base)
-                    except tk.TclError:
-                        pass
-                self._hide_tip()
-
-        def leave(e):
-            self.after(1, check_leave)
-
-        for w in recolor:
-            w.bind("<Enter>", enter, add="+")
-            w.bind("<Leave>", leave, add="+")
-
-    def _schedule_tip(self, item):
-        self._cancel_tip()
-        body = item.get("body", "")
-        text = body if body.strip() else "（本文なし）"
-        self._tip_after = self.after(450, lambda: self._show_tip(text))
-
-    def _show_tip(self, text):
-        self._hide_tip()
-        x, y = self.winfo_pointerxy()
-        tw = tk.Toplevel(self)
-        tw.wm_overrideredirect(True)
-        tw.wm_geometry(f"+{x + 16}+{y + 18}")
-        tk.Label(tw, text=text, justify="left", anchor="w", background="#FFFBE6",
-                 foreground="#222", relief="solid", borderwidth=1,
-                 font=("Yu Gothic UI", 10), wraplength=380, padx=8, pady=6).pack()
-        self._tip = tw
-
-    def _cancel_tip(self):
-        if self._tip_after:
-            self.after_cancel(self._tip_after)
-            self._tip_after = None
-
-    def _hide_tip(self):
-        self._cancel_tip()
-        if self._tip:
-            self._tip.destroy()
-            self._tip = None
+            canvas.yview_moveto((y + h - ch + 6) / total)
 
     # -- 現在フォルダ -------------------------------------------------------
     def _current_folder_index(self):
@@ -1580,22 +1664,69 @@ class StamperApp(tk.Tk):
         if self._armed == (fi, idx) and (now - self._armed_at) <= self.ARM_TIMEOUT:
             self._do_copy(item)
             self._disarm()
-            self._fill_rows()          # 再施錠表示
+            self._fill_rows()
         else:
             self._armed = (fi, idx)
             self._armed_at = now
             self.status.set(f"鍵付き：もう一度クリック / Enter でコピー → {item_label(item)}")
-            self._fill_rows()          # 開錠アイコンへ
+            self._fill_rows()
 
     def _do_copy(self, item):
         text = self._expand_placeholders(item.get("body", ""))
         if text is None:
-            return  # プレースホルダ入力がキャンセルされた
+            return
         self.clipboard_clear()
         self.clipboard_append(text)
         self.update()
+        item["used"] = item.get("used", 0) + 1
+        save_data(self.data)
         self.status.set(f"コピーしました → {item_label(item)}")
-        self._toast("コピー！")
+        if (self.data.get("settings", {}).get("paste_back", True)
+                and sys.platform == "win32" and self._prev_hwnd):
+            self._paste_to_prev()
+        else:
+            self._toast(f"{item_label(item)} をコピー")
+
+    # -- 直接貼り付け（呼び出し前のウィンドウへ Ctrl+V） --------------------
+    def _track_prev_window(self):
+        if sys.platform != "win32":
+            return
+        try:
+            import ctypes
+            u = ctypes.windll.user32
+            if self._own_hwnd is None:
+                self._own_hwnd = u.GetAncestor(self.winfo_id(), 2)  # GA_ROOT
+            fg = u.GetForegroundWindow()
+            if fg and fg != self._own_hwnd:
+                self._prev_hwnd = fg
+        except Exception:
+            pass
+
+    def _paste_to_prev(self):
+        hwnd = self._prev_hwnd
+        if not hwnd:
+            self._toast("コピーしました")
+            return
+        try:
+            import ctypes
+            u = ctypes.windll.user32
+            self.withdraw()                      # 自分を引っ込めてフォーカスを渡す
+            u.SetForegroundWindow(hwnd)
+            self.after(70, self._send_ctrl_v)
+        except Exception:
+            self.deiconify()
+
+    def _send_ctrl_v(self):
+        try:
+            import ctypes
+            u = ctypes.windll.user32
+            VK_CONTROL, VK_V, KEYUP = 0x11, 0x56, 0x2
+            u.keybd_event(VK_CONTROL, 0, 0, 0)
+            u.keybd_event(VK_V, 0, 0, 0)
+            u.keybd_event(VK_V, 0, KEYUP, 0)
+            u.keybd_event(VK_CONTROL, 0, KEYUP, 0)
+        except Exception:
+            pass
 
     def _expand_placeholders(self, body):
         tokens = re.findall(r"\{\{(.+?)\}\}", body)
@@ -1624,18 +1755,21 @@ class StamperApp(tk.Tk):
         return re.sub(r"\{\{(.+?)\}\}", sub, body)
 
     def _toast(self, text):
-        x, y = self.winfo_pointerxy()
         tw = tk.Toplevel(self)
         tw.wm_overrideredirect(True)
-        tw.configure(bg=self.ACCENT)
-        tk.Label(tw, text=text, bg=self.ACCENT, fg=fg_on(self.ACCENT),
-                 font=("Yu Gothic UI", 10, "bold"), padx=12, pady=6).pack()
-        tw.wm_geometry(f"+{x + 12}+{y - 36}")
+        tw.configure(bg=self.INK)
+        tk.Label(tw, text=text, bg=self.INK, fg=self.PAPER,
+                 font=(F_UI, 10), padx=14, pady=7).pack()
+        tw.update_idletasks()
         try:
+            self.update_idletasks()
+            cx = self.winfo_rootx() + self.winfo_width() // 2
+            by = self.winfo_rooty() + self.winfo_height() - 64
+            tw.wm_geometry(f"+{cx - tw.winfo_reqwidth() // 2}+{by}")
             tw.attributes("-topmost", True)
         except tk.TclError:
             pass
-        self.after(700, tw.destroy)
+        self.after(750, tw.destroy)
 
     def _disarm(self):
         self._armed = None
@@ -1651,7 +1785,7 @@ class StamperApp(tk.Tk):
             self._clear_btn.pack_forget()
         self._fill_rows()
 
-    # -- ホットキー ---------------------------------------------------------
+    # -- ホットキー / トレイ -------------------------------------------------
     def _start_hotkey(self):
         hk = self.data.get("settings", {}).get("hotkey", "")
         if not self.hotkeys.available:
@@ -1661,6 +1795,7 @@ class StamperApp(tk.Tk):
             self.status.set(f"ホットキー「{hk}」を登録できませんでした（他アプリと競合の可能性）")
 
     def _poll_events(self):
+        self._track_prev_window()
         try:
             while True:
                 self._hk_queue.get_nowait()
@@ -1680,7 +1815,6 @@ class StamperApp(tk.Tk):
         self.after(120, self._poll_events)
 
     def _on_close(self):
-        # × はトレイに隠す（トレイが使えないときだけ終了）
         if getattr(self, "_tray_ok", False) and self.tray.available:
             self.withdraw()
             if not getattr(self, "_told_tray", False):
@@ -1714,7 +1848,6 @@ class StamperApp(tk.Tk):
         if len(self.data["folders"]) >= MAX_FOLDERS:
             messagebox.showinfo(APP_NAME, f"フォルダは最大{MAX_FOLDERS}個までです。")
             return
-        # 既定名「新しいフォルダ」。重複したら（1）（2）…と採番（プロンプト無し）
         base = "新しいフォルダ"
         existing = {f["name"] for f in self.data["folders"]}
         name, i = base, 1
@@ -1726,6 +1859,7 @@ class StamperApp(tk.Tk):
         self._fav = False
         self._current = len(self.data["folders"]) - 1
         self._render_tabbar()
+        self._scroll_into_view(self._current)
         self._fill_rows()
         self.status.set(f"「{name}」を追加（タブをダブルクリックで名前変更）")
 
@@ -1742,6 +1876,7 @@ class StamperApp(tk.Tk):
         self.data["folders"][idx]["name"] = name
         save_data(self.data)
         self._render_tabbar()
+        self._fill_rows()
 
     def delete_folder(self, idx=None):
         if idx is None or idx == self.FAV_KEY:
@@ -1770,7 +1905,7 @@ class StamperApp(tk.Tk):
             return
         dlg = TemplateDialog(self, title="定型文を追加")
         if dlg.result:
-            dlg.result.setdefault("pinned", False)
+            dlg.result.update({"pinned": False, "used": 0})
             self.data["folders"][fi]["items"].append(dlg.result)
             save_data(self.data)
             self._fav = False
@@ -1793,7 +1928,7 @@ class StamperApp(tk.Tk):
         dlg = TemplateDialog(self, title="クリップボードから登録",
                              item={"title": "", "body": text, "secret": False})
         if dlg.result:
-            dlg.result.setdefault("pinned", False)
+            dlg.result.update({"pinned": False, "used": 0})
             self.data["folders"][fi]["items"].append(dlg.result)
             save_data(self.data)
             self._fav = False
@@ -1806,6 +1941,7 @@ class StamperApp(tk.Tk):
         dlg = TemplateDialog(self, title="定型文を編集", item=item)
         if dlg.result:
             dlg.result["pinned"] = item.get("pinned", False)
+            dlg.result["used"] = item.get("used", 0)
             self.data["folders"][fi]["items"][idx] = dlg.result
             save_data(self.data)
             self._fill_rows()
@@ -1815,47 +1951,105 @@ class StamperApp(tk.Tk):
         item = self.data["folders"][fi]["items"][idx]
         item["pinned"] = not item.get("pinned")
         save_data(self.data)
-        self._render_tabbar()        # 「よく使う」タブの出現/消滅に追従
+        self._render_tabbar()
         self._fill_rows()
         self.status.set(
             ("お気に入りに追加 → " if item["pinned"] else "お気に入りから外しました → ")
             + item_label(item))
 
-    # -- ドラッグ並び替え（表示インデックスで操作） --------------------------
+    def delete_item(self, fi, idx):
+        title = item_label(self.data["folders"][fi]["items"][idx])
+        if self.data.get("settings", {}).get("confirm_delete", True):
+            if not messagebox.askyesno(APP_NAME, f"「{title}」を削除しますか？"):
+                return
+        del self.data["folders"][fi]["items"][idx]
+        save_data(self.data)
+        self._disarm()
+        self._render_tabbar()
+        self._fill_rows()
+        self.status.set(f"削除しました → {title}")
+
+    # -- ドラッグ並び替え（ドロップ位置の線＋つかみ元を淡く） ----------------
     def _drag_start(self, vj):
         if not self._reorderable:
             self._drag_from = None
-            self.status.set("並び替えは通常表示（検索なし・このフォルダ）のときだけできます")
+            self.status.set("並び替えは通常表示のときだけ（検索・お気に入り表示中は不可）")
             return
         self._drag_from = vj
+        self._drag_moved = False
 
     def _drag_motion(self, event):
         if self._drag_from is None:
             return
+        if not self._drag_moved:
+            self._drag_moved = True
+            try:    # つかみ元を淡く
+                self._rows[self._drag_from]["frame"].config(
+                    highlightbackground=self.ACC, bg=self.LINE2)
+            except (tk.TclError, IndexError):
+                pass
+            if self._drop_line is None:
+                self._drop_line = tk.Frame(self._inner, bg=self.ACC, height=2)
+        self._autoscroll_edge(event.y_root)
         t = self._row_target_index(event.y_root)
-        if t is not None and 0 <= t < len(self._visible):
-            self.status.set(f"ここへ移動 → {item_label(self._visible[t][2])}")
+        if t is not None:
+            self._show_drop(t)
 
     def _drag_end(self, event):
         if self._drag_from is None:
             return
         fj = self._drag_from
+        moved = self._drag_moved
         self._drag_from = None
+        self._drag_moved = False
+        if self._drop_line is not None:
+            self._drop_line.place_forget()
+        if not moved:
+            return
         tj = self._row_target_index(event.y_root)
         if tj is None or tj == fj:
             self._fill_rows()
             return
         fi = self._visible[fj][0]
         items = self.data["folders"][fi]["items"]
-        order = [v[1] for v in self._visible]   # data index を表示順に
-        moved = order.pop(fj)
+        order = [v[1] for v in self._visible]
+        m = order.pop(fj)
         if tj > fj:
             tj -= 1
-        order.insert(tj, moved)
+        order.insert(tj, m)
         items[:] = [items[k] for k in order]
         save_data(self.data)
         self._fill_rows()
         self.status.set("並び替えました")
+
+    def _autoscroll_edge(self, y_root):
+        try:
+            c = self._canvas
+            top = c.winfo_rooty()
+            h = c.winfo_height()
+        except tk.TclError:
+            return
+        if y_root < top + 24:
+            c.yview_scroll(-1, "units")
+        elif y_root > top + h - 24:
+            c.yview_scroll(1, "units")
+
+    def _show_drop(self, tj):
+        if not self._rows or self._drop_line is None:
+            return
+        self._inner.update_idletasks()
+        try:
+            if tj < len(self._rows):
+                f = self._rows[tj]["frame"]
+                y = f.winfo_y() - 3
+            else:
+                f = self._rows[-1]["frame"]
+                y = f.winfo_y() + f.winfo_height() + 2
+            w = self._inner.winfo_width() - 28
+            self._drop_line.place(x=14, y=max(y, 0), width=max(w, 40))
+            self._drop_line.lift()
+        except tk.TclError:
+            pass
 
     def _row_target_index(self, y_root):
         rows = self._rows
@@ -1875,18 +2069,6 @@ class StamperApp(tk.Tk):
                 pass
             return len(rows) - 1
         return None
-
-    def delete_item(self, fi, idx):
-        title = item_label(self.data["folders"][fi]["items"][idx])
-        if self.data.get("settings", {}).get("confirm_delete", True):
-            if not messagebox.askyesno(APP_NAME, f"「{title}」を削除しますか？"):
-                return
-        del self.data["folders"][fi]["items"][idx]
-        save_data(self.data)
-        self._disarm()
-        self._render_tabbar()        # ピン留めが消えた場合に「よく使う」タブを更新
-        self._fill_rows()
-        self.status.set(f"削除しました → {title}")
 
     def destroy(self):
         try:
