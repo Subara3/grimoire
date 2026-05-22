@@ -211,6 +211,38 @@ def item_label(item: dict) -> str:
     return (first[:24] + "…") if len(first) > 24 else first
 
 
+# ---------------------------------------------------------------------------
+# プレースホルダ展開（GUIに依存しない純粋関数。テスト対象）
+# ---------------------------------------------------------------------------
+BUILTIN_TOKENS = ("date", "time", "datetime")
+
+
+def builtin_values(now=None) -> dict:
+    """{{date}}/{{time}}/{{datetime}} の値。"""
+    now = now or datetime.now()
+    return {
+        "date": now.strftime("%Y-%m-%d"),
+        "time": now.strftime("%H:%M"),
+        "datetime": now.strftime("%Y-%m-%d %H:%M"),
+    }
+
+
+def custom_tokens(body: str) -> list:
+    """本文中の {{任意}} トークン（組み込み以外）を重複なしで返す。"""
+    toks = re.findall(r"\{\{(.+?)\}\}", body)
+    return [t for t in dict.fromkeys(toks) if t.lower() not in BUILTIN_TOKENS]
+
+
+def expand_tokens(body: str, values: dict) -> str:
+    """{{token}} を values で置換。未知のトークンはそのまま残す。"""
+    def sub(m):
+        key = m.group(1)
+        if key in values:
+            return values[key]
+        return values.get(key.lower(), m.group(0))
+    return re.sub(r"\{\{(.+?)\}\}", sub, body)
+
+
 def save_data(data: dict) -> bool:
     """templates.json へ保存。外部から消されていても保存先を作り直し、
     一時ファイル経由の原子的書き込みで途中破損を防ぐ。"""

@@ -38,9 +38,21 @@ python stamper.py
 Python 3.10 以降を推奨。実行に追加ライブラリは不要です（Tkinter は標準同梱）。
 ※ アイコン再生成とビルドにだけ Pillow / PyInstaller を使います。
 
+## テスト / 品質ゲート
+
+純粋ロジック（色のコントラスト・ホットキー解析・プレースホルダ展開・データの保存/破損時フォールバック・ラベル整形など）を `tests/` のユニットテストで検証します。GUI は起動しないのでディスプレイ無しでも通ります。
+
+```bash
+python -m unittest discover -s tests -p "test_*.py" -v
+```
+
+- **ビルド時**：`build.bat` は最初にテストを実行し、**全部通らなければ exe をビルドしません**。
+- **CI**：`main` への push / PR で GitHub Actions がテストを実行（`.github/workflows/ci.yml`）。
+- **リリース**：タグ `v*` を push すると、テスト合格時のみ exe をビルドしてリリースへ添付（`.github/workflows/release.yml`）。テストが落ちたらリリース成果物は作られません。
+
 ## exe をビルドする
 
-`build.bat` をダブルクリックするだけ。`dist\Grimoire.exe` が生成されます。
+`build.bat` をダブルクリックするだけ。テストが通れば `dist\Grimoire.exe` が生成されます。
 
 手動で実行する場合:
 
