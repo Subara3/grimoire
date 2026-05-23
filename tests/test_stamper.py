@@ -188,6 +188,15 @@ class TestAutostartHelpers(unittest.TestCase):
         self.assertEqual(stamper._ps_quote("normal"), "normal")
 
 
+class TestSingleInstance(unittest.TestCase):
+    """シングル・インスタンスの定数だけ確認（実際の Mutex 取得はテストしない）。"""
+
+    def test_constants_present(self):
+        self.assertTrue(stamper.SINGLE_INSTANCE_MUTEX_NAME)
+        self.assertEqual(stamper.TRAY_WINDOW_CLASS, "GrimoireTrayWnd")
+        self.assertTrue(callable(stamper.signal_existing_instance))
+
+
 class TestDefaultData(unittest.TestCase):
     def test_serializable_and_structure(self):
         s = json.dumps(stamper.DEFAULT_DATA, ensure_ascii=False)

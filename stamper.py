@@ -534,6 +534,9 @@ class TrayIcon:
                 ("lpszMenuName", wintypes.LPCWSTR), ("lpszClassName", wintypes.LPCWSTR),
             ]
 
+        # 二重起動された側からの「表に出ろ」シグナルを受ける専用メッセージID
+        WM_SHOW_GRIMOIRE = user32.RegisterWindowMessageW("GrimoireShowMsg")
+
         def wndproc(hwnd, msg, wparam, lparam):
             if msg == self.WM_TRAY:
                 ev = lparam & 0xFFFF
@@ -541,6 +544,9 @@ class TrayIcon:
                     self._safe(self.on_show)
                 elif ev == self.WM_RBUTTONUP:
                     self._popup_menu(user32, hwnd)
+                return 0
+            if WM_SHOW_GRIMOIRE and msg == WM_SHOW_GRIMOIRE:
+                self._safe(self.on_show)
                 return 0
             if msg == 0x0002:        # WM_DESTROY
                 user32.PostQuitMessage(0)
@@ -2248,7 +2254,45 @@ class StamperApp(tk.Tk):
         super().destroy()
 
 
+# ---------------------------------------------------------------------------
+# シングル・インスタンス
+#   名前付き Mutex で「既に起動中か」を判定。既存があれば、そっちのトレイ窓へ
+#   "GrimoireShowMsg" を Post して表に出させ、自分は何もせず終了する。
+#   Windows / ctypes のみ・依存追加なし。
+# ---------------------------------------------------------------------------
+SINGLE_INSTANCE_MUTEX_NAME = "Grimoire-SingleInstance"
+TRAY_WINDOW_CLASS = "GrimoireTrayWnd"
+_SINGLE_INSTANCE_HANDLE = None
+
+
+def signal_existing_instance() -> bool:
+    """既存インスタンスがいたら表示シグナルを送って True を返す（自分は終了すべし）。
+    いない場合は Mutex を保持して False を返す。"""
+    if sys.platform != "win32":
+        return False
+    global _SINGLE_INSTANCE_HANDLE
+    import ctypes
+    k32 = ctypes.windll.kernel32
+    u32 = ctypes.windll.user32
+    ERROR_ALREADY_EXISTS = 183
+    h = k32.CreateMutexW(None, False, SINGLE_INSTANCE_MUTEX_NAME)
+    if not h:
+        return False
+    if k32.GetLastError() == ERROR_ALREADY_EXISTS:
+        wm = u32.RegisterWindowMessageW("GrimoireShowMsg")
+        hwnd = u32.FindWindowW(TRAY_WINDOW_CLASS, None)
+        if hwnd and wm:
+            u32.PostMessageW(hwnd, wm, 0, 0)
+        k32.CloseHandle(h)
+        return True
+    # 新規。プロセス終了までハンドルを保持して Mutex を生かす
+    _SINGLE_INSTANCE_HANDLE = h
+    return False
+
+
 def main():
+    if signal_existing_instance():
+        return
     app = StamperApp()
     app.mainloop()
 
