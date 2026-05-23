@@ -135,7 +135,7 @@ def primary_button(parent_widget, accent, text, command):
 
 DEFAULT_DATA = {
     "settings": {"hotkey": "ctrl+alt+space", "accent": DEFAULT_ACCENT,
-                 "confirm_delete": True, "paste_back": True,
+                 "confirm_delete": True, "paste_back": False,
                  "window_w": 580, "window_h": 680, "autostart": False},
     "folders": [
         {
@@ -188,7 +188,7 @@ def load_data() -> dict:
                 s.setdefault("hotkey", "ctrl+alt+space")
                 s.setdefault("accent", DEFAULT_ACCENT)
                 s.setdefault("confirm_delete", True)
-                s.setdefault("paste_back", True)
+                s.setdefault("paste_back", False)
                 s.setdefault("window_w", 580)
                 s.setdefault("window_h", 680)
                 s.setdefault("autostart", False)
@@ -745,7 +745,7 @@ class PlaceholderDialog(tk.Toplevel):
 # ---------------------------------------------------------------------------
 class SettingsDialog(tk.Toplevel):
     def __init__(self, parent, accent, hotkey, confirm_delete,
-                 paste_back=True, autostart=False):
+                 paste_back=False, autostart=False):
         super().__init__(parent)
         self.transient(parent)
         self.title("設定")
@@ -1829,7 +1829,7 @@ class StamperApp(tk.Tk):
         item["used"] = item.get("used", 0) + 1
         save_data(self.data)
         self.status.set(f"コピーしました → {item_label(item)}")
-        if (self.data.get("settings", {}).get("paste_back", True)
+        if (self.data.get("settings", {}).get("paste_back", False)
                 and sys.platform == "win32" and self._prev_hwnd):
             self._paste_to_prev()
         else:
