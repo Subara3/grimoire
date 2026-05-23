@@ -98,6 +98,8 @@ pyinstaller --onefile --windowed --name Grimoire ^
   ※ Catmemonote の `Ctrl+CapsLock` や clibor の `Ctrl×2` と被らないものを選んでください（Windows 専用）。
 - 直接貼り付け：コピー後に、呼び出す前のアプリへ自動で Ctrl+V（オン/オフ）
 - 削除の前に確認する：オン/オフ
+- Windows起動時に自動で起動（タスクトレイに常駐）：オン/オフ
+  - レジストリを汚さず、`%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\Grimoire.lnk` を置く/消すだけ。配布版（exe）からの起動時のみ設定可。
 
 ### プレースホルダ
 

@@ -166,13 +166,35 @@ class TestDataIO(unittest.TestCase):
         self.assertGreater(len(data["folders"]), 0)
 
 
+class TestAutostartHelpers(unittest.TestCase):
+    """自動起動はスタートアップフォルダの .lnk で実装。
+    set/get の実体（実際の .lnk 作成）はテストしない（ユーザーのフォルダを汚染するため）。
+    ここではパス計算と availability の純粋ロジックだけを確認する。"""
+
+    def test_not_available_in_dev(self):
+        # .py から実行（frozen=False）のときは自動起動を提供しない
+        self.assertFalse(stamper.autostart_available())
+
+    def test_shortcut_path_ends_with_app_name(self):
+        p = stamper._shortcut_path()
+        self.assertTrue(p.endswith(stamper.APP_NAME + ".lnk"))
+
+    def test_startup_dir_contains_startup(self):
+        d = stamper._startup_dir()
+        self.assertIn("Startup", d)
+
+    def test_ps_quote_doubles_single_quotes(self):
+        self.assertEqual(stamper._ps_quote("a'b'c"), "a''b''c")
+        self.assertEqual(stamper._ps_quote("normal"), "normal")
+
+
 class TestDefaultData(unittest.TestCase):
     def test_serializable_and_structure(self):
         s = json.dumps(stamper.DEFAULT_DATA, ensure_ascii=False)
         self.assertIn("folders", json.loads(s))
         settings = stamper.DEFAULT_DATA["settings"]
         for key in ("hotkey", "accent", "confirm_delete", "paste_back",
-                    "window_w", "window_h"):
+                    "window_w", "window_h", "autostart"):
             self.assertIn(key, settings)
         for folder in stamper.DEFAULT_DATA["folders"]:
             self.assertIn("name", folder)

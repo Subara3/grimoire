@@ -14,3 +14,4 @@ _*.png
 
 # アプリアイコンの元素材（あきら提供の生データは公開しない。icon.ico/png のみ同梱）
 app_icon_src.png
+promo/

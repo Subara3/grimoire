@@ -136,7 +136,7 @@ def primary_button(parent_widget, accent, text, command):
 DEFAULT_DATA = {
     "settings": {"hotkey": "ctrl+alt+space", "accent": DEFAULT_ACCENT,
                  "confirm_delete": True, "paste_back": True,
-                 "window_w": 580, "window_h": 680},
+                 "window_w": 580, "window_h": 680, "autostart": False},
     "folders": [
         {
             "name": "挨拶・書き出し",
@@ -191,6 +191,7 @@ def load_data() -> dict:
                 s.setdefault("paste_back", True)
                 s.setdefault("window_w", 580)
                 s.setdefault("window_h", 680)
+                s.setdefault("autostart", False)
                 for folder in data["folders"]:
                     for item in folder.get("items", []):
                         item.setdefault("secret", False)
@@ -311,6 +312,87 @@ def _key_to_vk(key):
         if 1 <= n <= 24:
             return 0x70 + (n - 1)
     return None
+
+
+# ---------------------------------------------------------------------------
+# 自動起動（Windows / スタートアップ フォルダに .lnk を置く）
+#   %APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\Grimoire.lnk
+#   - レジストリは一切触らない（汚染ゼロ・ユーザーが .lnk を消せば完全解除）
+#   - .lnk の作成は PowerShell + WScript.Shell COM（Windows 標準同梱）。
+#     Python の追加ライブラリは不要・管理者権限不要・ユーザー単位。
+#   - --background つきで起動された場合はウィンドウを withdraw してトレイ常駐に。
+# ---------------------------------------------------------------------------
+def autostart_exe_path():
+    """自動起動に登録する実体パス。frozen（exe）でないと None。"""
+    if getattr(sys, "frozen", False):
+        return sys.executable
+    return None
+
+
+def autostart_available() -> bool:
+    return sys.platform == "win32" and autostart_exe_path() is not None
+
+
+def _startup_dir() -> str:
+    """%APPDATA%\\Microsoft\\Windows\\Start Menu\\Programs\\Startup を返す。"""
+    appdata = os.environ.get("APPDATA", "")
+    return os.path.join(appdata, "Microsoft", "Windows",
+                        "Start Menu", "Programs", "Startup")
+
+
+def _shortcut_path() -> str:
+    return os.path.join(_startup_dir(), f"{APP_NAME}.lnk")
+
+
+def get_autostart() -> bool:
+    """スタートアップに Grimoire.lnk があるか。"""
+    if sys.platform != "win32":
+        return False
+    return os.path.exists(_shortcut_path())
+
+
+def _ps_quote(s: str) -> str:
+    """PowerShell の単一引用符文字列にエスケープして埋め込む。"""
+    return s.replace("'", "''")
+
+
+def set_autostart(enabled: bool) -> bool:
+    """スタートアップに .lnk を置く/消す。成功で True。"""
+    if sys.platform != "win32":
+        return False
+    sc = _shortcut_path()
+    if not enabled:
+        try:
+            if os.path.exists(sc):
+                os.remove(sc)
+            return True
+        except OSError:
+            return False
+    exe = autostart_exe_path()
+    if not exe:
+        return False
+    workdir = os.path.dirname(exe)
+    ps = (
+        "$s=(New-Object -ComObject WScript.Shell).CreateShortcut('"
+        + _ps_quote(sc) + "');"
+        + f"$s.TargetPath='{_ps_quote(exe)}';"
+        + "$s.Arguments='--background';"
+        + f"$s.WorkingDirectory='{_ps_quote(workdir)}';"
+        + f"$s.IconLocation='{_ps_quote(exe)},0';"
+        + "$s.Save()"
+    )
+    try:
+        import subprocess
+        os.makedirs(_startup_dir(), exist_ok=True)
+        r = subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive",
+             "-ExecutionPolicy", "Bypass", "-Command", ps],
+            capture_output=True, text=True,
+            creationflags=0x08000000,   # CREATE_NO_WINDOW（コンソールを出さない）
+        )
+        return r.returncode == 0 and os.path.exists(sc)
+    except OSError:
+        return False
 
 
 class HotkeyManager:
@@ -662,7 +744,8 @@ class PlaceholderDialog(tk.Toplevel):
 # 設定ダイアログ（テーマカラー / ホットキー / 削除確認）
 # ---------------------------------------------------------------------------
 class SettingsDialog(tk.Toplevel):
-    def __init__(self, parent, accent, hotkey, confirm_delete, paste_back=True):
+    def __init__(self, parent, accent, hotkey, confirm_delete,
+                 paste_back=True, autostart=False):
         super().__init__(parent)
         self.transient(parent)
         self.title("設定")
@@ -702,8 +785,19 @@ class SettingsDialog(tk.Toplevel):
         ttk.Checkbutton(frm, text="削除の前に確認する", variable=self.confirm_var).grid(
             row=5, column=0, columnspan=2, sticky="w", pady=(8, 0))
 
+        self.autostart_var = tk.BooleanVar(value=autostart)
+        cb_auto = ttk.Checkbutton(
+            frm, text="Windows起動時に自動で起動（タスクトレイに常駐）",
+            variable=self.autostart_var)
+        cb_auto.grid(row=6, column=0, columnspan=2, sticky="w", pady=(8, 0))
+        if not autostart_available():
+            cb_auto.state(["disabled"])
+            ttk.Label(frm, text="※ 配布版（exe）から起動したときだけ設定できます。",
+                      foreground="#8A8A8A").grid(
+                row=7, column=0, columnspan=2, sticky="w", pady=(0, 0))
+
         btns = ttk.Frame(frm)
-        btns.grid(row=6, column=0, columnspan=2, sticky="e", pady=(16, 0))
+        btns.grid(row=8, column=0, columnspan=2, sticky="e", pady=(16, 0))
         ttk.Button(btns, text="キャンセル", command=self._cancel).pack(side="left", padx=(0, 6))
         primary_button(btns, accent, "OK", self._ok).pack(side="left")
 
@@ -722,6 +816,7 @@ class SettingsDialog(tk.Toplevel):
             "hotkey": self.hk_var.get().strip().lower(),
             "confirm_delete": self.confirm_var.get(),
             "paste_back": self.paste_var.get(),
+            "autostart": self.autostart_var.get(),
         }
         self.destroy()
 
@@ -861,6 +956,10 @@ class StamperApp(tk.Tk):
         self.protocol("WM_DELETE_WINDOW", self._on_close)
         self.after(120, self._poll_events)
         self.after(100, lambda: self._search_entry.focus_set())
+        # 自動起動からの --background 起動なら、トレイ常駐で隠しスタート
+        if "--background" in sys.argv and self._tray_ok:
+            self._told_tray = True
+            self.after(80, self.withdraw)
 
     # -- リソース・スタイル -------------------------------------------------
     def _load_icons(self):
@@ -984,8 +1083,11 @@ class StamperApp(tk.Tk):
 
     def open_settings(self):
         s = self.data.setdefault("settings", {})
+        # 自動起動の現在状態はレジストリを正とする（exe実行時のみ）
+        cur_auto = get_autostart() if autostart_available() else s.get("autostart", False)
         dlg = SettingsDialog(self, self.ACCENT, s.get("hotkey", ""),
-                             s.get("confirm_delete", True), s.get("paste_back", True))
+                             s.get("confirm_delete", True), s.get("paste_back", True),
+                             cur_auto)
         if not dlg.result:
             return
         r = dlg.result
@@ -1000,6 +1102,14 @@ class StamperApp(tk.Tk):
         s["confirm_delete"] = r["confirm_delete"]
         s["paste_back"] = r["paste_back"]
         s["accent"] = r["accent"]
+        # 自動起動：設定とレジストリを同期
+        if autostart_available() and r["autostart"] != cur_auto:
+            if set_autostart(r["autostart"]):
+                s["autostart"] = r["autostart"]
+            else:
+                messagebox.showwarning(APP_NAME, "自動起動の登録に失敗しました（権限など）。")
+        else:
+            s["autostart"] = r["autostart"]
         save_data(self.data)
         self._apply_accent(r["accent"])
         self.status.set("設定を更新しました")
