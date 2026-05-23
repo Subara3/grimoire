@@ -135,7 +135,8 @@ def primary_button(parent_widget, accent, text, command):
 
 DEFAULT_DATA = {
     "settings": {"hotkey": "ctrl+alt+space", "accent": DEFAULT_ACCENT,
-                 "confirm_delete": True, "paste_back": True},
+                 "confirm_delete": True, "paste_back": True,
+                 "window_w": 580, "window_h": 680},
     "folders": [
         {
             "name": "挨拶・書き出し",
@@ -188,6 +189,8 @@ def load_data() -> dict:
                 s.setdefault("accent", DEFAULT_ACCENT)
                 s.setdefault("confirm_delete", True)
                 s.setdefault("paste_back", True)
+                s.setdefault("window_w", 580)
+                s.setdefault("window_h", 680)
                 for folder in data["folders"]:
                     for item in folder.get("items", []):
                         item.setdefault("secret", False)
@@ -794,15 +797,18 @@ class StamperApp(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title(f"{APP_TITLE} v{APP_VERSION}")
-        self.geometry("580x680")
+        # 設定（前回のウィンドウサイズ含む）を先に読み、ジオメトリに反映
+        self.data = load_data()
+        _s = self.data.get("settings", {})
+        _w = max(480, min(int(_s.get("window_w", 580) or 580), 4000))
+        _h = max(480, min(int(_s.get("window_h", 680) or 680), 4000))
+        self.geometry(f"{_w}x{_h}")
         self.minsize(480, 480)
         self.configure(bg=self.PAGE)
         try:
             self.iconbitmap(resource_path("icon.ico"))
         except Exception:
             pass
-
-        self.data = load_data()
         self.ACCENT = self.data.get("settings", {}).get("accent", DEFAULT_ACCENT)
         self._recolor_derived()
 
@@ -1846,7 +1852,24 @@ class StamperApp(tk.Tk):
             pass
         self.after(120, self._poll_events)
 
+    def _save_window_size(self):
+        """現在のウィンドウサイズを設定に記憶（次回起動時に復元）。"""
+        try:
+            if self.state() == "withdrawn":
+                return
+            w, h = self.winfo_width(), self.winfo_height()
+            if w < 200 or h < 200:
+                return
+            s = self.data.setdefault("settings", {})
+            if s.get("window_w") != w or s.get("window_h") != h:
+                s["window_w"] = w
+                s["window_h"] = h
+                save_data(self.data)
+        except tk.TclError:
+            pass
+
     def _on_close(self):
+        self._save_window_size()
         if getattr(self, "_tray_ok", False) and self.tray.available:
             self.withdraw()
             if not getattr(self, "_told_tray", False):
@@ -1856,6 +1879,7 @@ class StamperApp(tk.Tk):
             self._quit()
 
     def _quit(self):
+        self._save_window_size()
         try:
             self.tray.stop()
         except Exception:

@@ -150,6 +150,8 @@ class TestDataIO(unittest.TestCase):
         self.assertIn("pinned", item)
         self.assertIn("used", item)
         self.assertIn("paste_back", loaded["settings"])
+        self.assertIn("window_w", loaded["settings"])
+        self.assertIn("window_h", loaded["settings"])
 
     def test_save_no_leftover_tmp(self):
         stamper.save_data({"folders": [{"name": "a", "items": []}]})
@@ -169,7 +171,8 @@ class TestDefaultData(unittest.TestCase):
         s = json.dumps(stamper.DEFAULT_DATA, ensure_ascii=False)
         self.assertIn("folders", json.loads(s))
         settings = stamper.DEFAULT_DATA["settings"]
-        for key in ("hotkey", "accent", "confirm_delete", "paste_back"):
+        for key in ("hotkey", "accent", "confirm_delete", "paste_back",
+                    "window_w", "window_h"):
             self.assertIn(key, settings)
         for folder in stamper.DEFAULT_DATA["folders"]:
             self.assertIn("name", folder)
